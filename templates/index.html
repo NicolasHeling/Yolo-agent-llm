@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroVision AI - SOC Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050b14;
+            --glass-bg: rgba(13, 22, 38, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #00f0ff; /* Neon Cyan */
+            --secondary: #10b981; /* Emerald */
+            --accent: #6366f1; /* Indigo */
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at 50% 0%, #111a2e 0%, var(--bg-color) 100%);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR (Estética de App Completo) */
+        .sidebar {
+            width: 70px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 30px;
+            z-index: 100;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.2rem;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .nav-item {
+            width: 24px;
+            height: 24px;
+            border-radius: 8px;
+            background: var(--text-dim);
+            opacity: 0.4;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-item.active { background: var(--primary); opacity: 1; box-shadow: 0 0 15px var(--primary); }
+        .nav-item:hover { opacity: 0.8; }
+
+        /* CONTEÚDO PRINCIPAL */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 30px;
+            gap: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title-area h1 { margin: 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+        .title-area span { color: var(--primary); }
+        .title-area p { margin: 5px 0 0; color: var(--text-dim); font-size: 0.9rem; font-family: 'JetBrains Mono', monospace; }
+
+        .system-status {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 8px 16px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pulse-dot { width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; box-shadow: 0 0 10px var(--secondary); animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* GRID DE VISUALIZAÇÃO */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            flex: 1;
+            height: calc(100vh - 120px);
+        }
+
+        /* CONTAINER DA CÂMERA (Com efeito HUD) */
+        .video-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        .video-hud-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none; /* Deixa clicar através */
+            z-index: 5;
+        }
+
+        .cam-header {
+            padding: 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+            position: absolute; width: 100%; box-sizing: border-box; z-index: 10;
+        }
+
+        .cam-name { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .live-badge { background: #ef4444; color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; }
+
+        .video-stream { flex: 1; background: #000; display: flex; justify-content: center; align-items: center; }
+        .video-stream img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* CONTAINER DO AGENTE IA */
+        .agent-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .agent-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .ai-avatar {
+            width: 45px; height: 45px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--secondary), #059669);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.5rem; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .ai-info h3 { margin: 0; font-size: 1rem; }
+        .ai-info p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-dim); }
+
+        #chat-window {
+            flex: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+        
+        #chat-window::-webkit-scrollbar { width: 4px; }
+        #chat-window::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 85%; }
+        .wrapper-bot { align-self: flex-start; }
+        .wrapper-user { align-self: flex-end; align-items: flex-end; }
+
+        .msg-time { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
+
+        .msg-bubble {
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .bot-msg { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-top-left-radius: 4px; }
+        .user-msg { background: linear-gradient(135deg, var(--primary), #0284c7); color: #fff; border-top-right-radius: 4px; }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid var(--glass-border);
+            display: flex; gap: 12px;
+            background: rgba(0,0,0,0.2);
+            border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;
+        }
+
+        input {
+            flex: 1; padding: 14px 20px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; color: white; font-family: 'Inter', sans-serif;
+            transition: 0.3s;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); background: rgba(0, 240, 255, 0.05); }
+        input::placeholder { color: #475569; }
+
+        button {
+            padding: 0 24px; border: none; border-radius: 12px;
+            background: var(--primary); color: #000; font-weight: 700; font-size: 0.95rem;
+            cursor: pointer; transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        }
+
+        button:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(0, 240, 255, 0.6); }
+
+        /* Animação Digitanto */
+        .typing-indicator { display: flex; gap: 5px; padding: 5px; }
+        .dot { width: 6px; height: 6px; background: var(--text-dim); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="logo-icon">AV</div>
+        <div class="nav-item active"></div>
+        <div class="nav-item"></div>
+        <div class="nav-item"></div>
+        <div class="nav-item" style="margin-top: auto; margin-bottom: 20px;"></div>
+    </nav>
+
+    <div class="main-wrapper">
+        <header>
+            <div class="title-area">
+                <h1><span>Agro</span>Vision AI</h1>
+                <p>NÚCLEO DE INTELIGÊNCIA E MONITORAMENTO DE TRÁFEGO</p>
+            </div>
+            <div class="system-status">
+                <div class="pulse-dot"></div>
+                YOLOv8 + Llama 3 Online
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            
+            <div class="video-card">
+                <div class="video-hud-overlay"></div>
+                <div class="cam-header">
+                    <div class="cam-name">CAM-01 / RODOVIA CALIFÓRNIA / SB-5</div>
+                    <div class="live-badge">REC</div>
+                </div>
+                <div class="video-stream">
+                    <img src="/video_feed" alt="Stream AgroVision">
+                </div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="ai-avatar">🤖</div>
+                    <div class="ai-info">
+                        <h3>Agente Operacional</h3>
+                        <p>Análise de Visão Computacional</p>
+                    </div>
+                </div>
+
+                <div id="chat-window">
+                    <div class="msg-wrapper wrapper-bot">
+                        <span class="msg-time">AGORA</span>
+                        <div class="msg-bubble bot-msg">
+                            Sistemas inicializados. Sou a IA de suporte do AgroVision. O que você gostaria de analisar na rodovia hoje?
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <input type="text" id="user-input" placeholder="Solicite uma análise..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <button onclick="sendMessage()">ENVIAR</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function getTime() {
+            const now = new Date();
+            return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const chatWindow = document.getElementById('chat-window');
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            // Mensagem do Usuário
+            chatWindow.innerHTML += `
+                <div class="msg-wrapper wrapper-user">
+                    <span class="msg-time">${getTime()}</span>
+                    <div class="msg-bubble user-msg">${userText}</div>
+                </div>`;
+            input.value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            // Indicador de "Digitando"
+            const loadingId = 'loading-' + Date.now();
+            chatWindow.innerHTML += `
+                <div id="${loadingId}" class="msg-wrapper wrapper-bot">
+                    <span class="msg-time">${getTime()}</span>
+                    <div class="msg-bubble bot-msg">
+                        <div class="typing-indicator">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                    </div>
+                </div>`;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            try {
+                const response = await fetch(`/agent/test?q=${encodeURIComponent(userText)}`);
+                const data = await response.json();
+                
+                document.getElementById(loadingId).remove();
+                
+                const formattedResponse = data.agente_agrovision.replace(/\n/g, '<br>');
+                chatWindow.innerHTML += `
+                    <div class="msg-wrapper wrapper-bot">
+                        <span class="msg-time">${getTime()}</span>
+                        <div class="msg-bubble bot-msg">${formattedResponse}</div>
+                    </div>`;
+            } catch (e) {
+                document.getElementById(loadingId).remove();
+                chatWindow.innerHTML += `
+                    <div class="msg-wrapper wrapper-bot">
+                        <span class="msg-time">${getTime()}</span>
+                        <div class="msg-bubble bot-msg" style="color: #ef4444;">Falha de comunicação com o servidor neural (Ollama).</div>
+                    </div>`;
+            }
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    </script>
+</body>
+</html>

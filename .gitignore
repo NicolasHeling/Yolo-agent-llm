@@ -1,0 +1,19 @@
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+
+# Arquivos de Configuração e Senhas
+.env
+
+# Arquivos gerados pelo Python e Banco de Dados
+__pycache__/
+*.db
+*.sqlite3
+
+# Modelos de IA e Pesos (Não suba arquivos gigantes)
+*.pt
+yolov8n.pt
+
+# Arquivos de mídia temporários
+static/captures/*
