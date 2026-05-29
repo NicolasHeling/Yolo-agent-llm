@@ -8,7 +8,6 @@ from services.event_repository import save_event
 class VideoMonitor:
     def __init__(self):
         print("🤖 Carregando modelo YOLOv8...")
-        # Carrega o modelo nano (mais leve para rodar junto com o Ollama)
         self.model = YOLO("yolov8n.pt") 
         self.current_frame = None
         self.is_running = False
@@ -31,8 +30,13 @@ class VideoMonitor:
     def _update_loop(self):
         """Loop principal de leitura de frames e detecção."""
         while self.is_running:
-            print(f"📷 Conectando na fonte: {CAMERA_SOURCE}")
-            cap = cv2.VideoCapture(CAMERA_SOURCE)
+            # Converte a fonte para número (int) se for um dígito como "0"
+            source = int(CAMERA_SOURCE) if str(CAMERA_SOURCE).isdigit() else CAMERA_SOURCE
+            
+            print(f"📷 Conectando na fonte: {source}")
+            
+            # Ligar diretamente à fonte sem configurações extras do Windows para evitar travamento
+            cap = cv2.VideoCapture(source)
             
             if not cap.isOpened():
                 print(f"⚠️ Falha ao abrir câmera. Reconectando em {CAMERA_RECONNECT_SECONDS}s...")
@@ -47,32 +51,34 @@ class VideoMonitor:
                     print("⚠️ Perda de sinal do stream. Tentando reconectar...")
                     break
                 
-                # Executa a detecção do YOLO no frame atual
+                # Executa a detecção do YOLO
                 results = self.model(frame, verbose=False)
                 
-                # Lógica de Persistência: Percorre o que o YOLO encontrou
+                # Gera o frame anotado para poder ser guardado
+                annotated_frame = results[0].plot()
+                
                 for box in results[0].boxes:
                     confianca = float(box.conf[0])
                     
-                    # Filtro de confiança (evita salvar falsos positivos)
                     if confianca > 0.20:
                         class_id = int(box.cls[0])
                         label = self.model.names[class_id]
                         
-                        # Salva o evento no SQLite (Event Repository)
-                        # Por enquanto, image_path fica como placeholder
-                        save_event(label, confianca, "static/captures/last_detection.jpg")
+                        # MELHORIA: Criar um nome de ficheiro único baseado num timestamp
+                        timestamp = int(time.time() * 1000)
+                        image_filename = f"static/captures/detection_{timestamp}.jpg"
+                        
+                        # Guarda fisicamente o ficheiro de imagem no disco
+                        cv2.imwrite(image_filename, annotated_frame)
+                        
+                        # Guarda o registo na base de dados referenciando a nova imagem
+                        save_event(label, confianca, image_filename)
                 
-                # Gera a imagem visual com os quadrados desenhados (anotações)
-                annotated_frame = results[0].plot()
-                
-                # Atualiza o frame atual para o streaming do FastAPI
+                # Atualiza o frame anotado para a rota de streaming
                 self.current_frame = annotated_frame
-                
-                # Pequena pausa para controle de FPS e alívio da CPU/GPU
                 time.sleep(0.03)
                 
             cap.release()
 
-# Instância global para ser importada pelo app.py
+# Instância global criada no FINAL do arquivo
 monitor = VideoMonitor()

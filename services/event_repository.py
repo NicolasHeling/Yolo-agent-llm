@@ -22,9 +22,11 @@ def init_db():
     print("💾 Banco de dados inicializado com sucesso.")
 
 def save_event(label, confidence, image_path=""):
-    """Salva uma nova detecção no banco de dados."""
-    conn = sqlite3.connect(DB_PATH)
+    """Salva uma nova detecção no banco de dados com timeout para evitar bloqueios."""
+    # Timeout de 10.0 segundos adicionado aqui para evitar erro de Disk I/O
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
+    
     # Pega a data e hora exata de agora
     event_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -55,7 +57,7 @@ def get_recent_events(limit=15):
             "id": row[0],
             "event_time": row[1],
             "label": row[2],
-            "confidence": round(row[3], 2), # Arredonda para 2 casas decimais
+            "confidence": row[3], # Retorna o dado puro, sem o round()
             "image_path": row[4]
         })
     return events

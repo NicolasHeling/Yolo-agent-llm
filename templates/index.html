@@ -10,9 +10,9 @@
             --bg-color: #050b14;
             --glass-bg: rgba(13, 22, 38, 0.6);
             --glass-border: rgba(255, 255, 255, 0.08);
-            --primary: #00f0ff; /* Neon Cyan */
-            --secondary: #10b981; /* Emerald */
-            --accent: #6366f1; /* Indigo */
+            --primary: #00f0ff;
+            --secondary: #10b981;
+            --accent: #6366f1;
             --text-main: #f8fafc;
             --text-dim: #94a3b8;
         }
@@ -27,7 +27,6 @@
             overflow: hidden;
         }
 
-        /* SIDEBAR (Estética de App Completo) */
         .sidebar {
             width: 70px;
             background: var(--glass-bg);
@@ -67,7 +66,6 @@
         .nav-item.active { background: var(--primary); opacity: 1; box-shadow: 0 0 15px var(--primary); }
         .nav-item:hover { opacity: 0.8; }
 
-        /* CONTEÚDO PRINCIPAL */
         .main-wrapper {
             flex: 1;
             display: flex;
@@ -104,7 +102,6 @@
         .pulse-dot { width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; box-shadow: 0 0 10px var(--secondary); animation: blink 1.5s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* GRID DE VISUALIZAÇÃO */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -113,7 +110,6 @@
             height: calc(100vh - 120px);
         }
 
-        /* CONTAINER DA CÂMERA (Com efeito HUD) */
         .video-card {
             background: var(--glass-bg);
             backdrop-filter: blur(16px);
@@ -133,7 +129,7 @@
                 linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
             background-size: 30px 30px;
-            pointer-events: none; /* Deixa clicar através */
+            pointer-events: none;
             z-index: 5;
         }
 
@@ -153,7 +149,6 @@
         .video-stream { flex: 1; background: #000; display: flex; justify-content: center; align-items: center; }
         .video-stream img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* CONTAINER DO AGENTE IA */
         .agent-card {
             background: var(--glass-bg);
             backdrop-filter: blur(16px);
@@ -235,7 +230,6 @@
 
         button:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(0, 240, 255, 0.6); }
 
-        /* Animação Digitanto */
         .typing-indicator { display: flex; gap: 5px; padding: 5px; }
         .dot { width: 6px; height: 6px; background: var(--text-dim); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .dot:nth-child(1) { animation-delay: -0.32s; }
@@ -291,76 +285,20 @@
                     <div class="msg-wrapper wrapper-bot">
                         <span class="msg-time">AGORA</span>
                         <div class="msg-bubble bot-msg">
-                            Sistemas inicializados. Sou a IA de suporte do AgroVision. O que você gostaria de analisar na rodovia hoje?
+                            Sistemas inicializados. Sou a IA de suporte do AgroVision. O que gostaria de analisar na rodovia hoje?
                         </div>
                     </div>
                 </div>
 
                 <div class="input-container">
-                    <input type="text" id="user-input" placeholder="Solicite uma análise..." onkeypress="if(event.key === 'Enter') sendMessage()">
-                    <button onclick="sendMessage()">ENVIAR</button>
+                    <input type="text" id="user-input" placeholder="Solicite uma análise...">
+                    <button id="send-btn">ENVIAR</button>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <script>
-        function getTime() {
-            const now = new Date();
-            return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('user-input');
-            const chatWindow = document.getElementById('chat-window');
-            const userText = input.value.trim();
-            if (!userText) return;
-
-            // Mensagem do Usuário
-            chatWindow.innerHTML += `
-                <div class="msg-wrapper wrapper-user">
-                    <span class="msg-time">${getTime()}</span>
-                    <div class="msg-bubble user-msg">${userText}</div>
-                </div>`;
-            input.value = '';
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-
-            // Indicador de "Digitando"
-            const loadingId = 'loading-' + Date.now();
-            chatWindow.innerHTML += `
-                <div id="${loadingId}" class="msg-wrapper wrapper-bot">
-                    <span class="msg-time">${getTime()}</span>
-                    <div class="msg-bubble bot-msg">
-                        <div class="typing-indicator">
-                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                        </div>
-                    </div>
-                </div>`;
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-
-            try {
-                const response = await fetch(`/agent/test?q=${encodeURIComponent(userText)}`);
-                const data = await response.json();
-                
-                document.getElementById(loadingId).remove();
-                
-                const formattedResponse = data.agente_agrovision.replace(/\n/g, '<br>');
-                chatWindow.innerHTML += `
-                    <div class="msg-wrapper wrapper-bot">
-                        <span class="msg-time">${getTime()}</span>
-                        <div class="msg-bubble bot-msg">${formattedResponse}</div>
-                    </div>`;
-            } catch (e) {
-                document.getElementById(loadingId).remove();
-                chatWindow.innerHTML += `
-                    <div class="msg-wrapper wrapper-bot">
-                        <span class="msg-time">${getTime()}</span>
-                        <div class="msg-bubble bot-msg" style="color: #ef4444;">Falha de comunicação com o servidor neural (Ollama).</div>
-                    </div>`;
-            }
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        }
-    </script>
+    <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

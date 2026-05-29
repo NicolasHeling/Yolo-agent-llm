@@ -1,6 +1,10 @@
 import httpx
-import json
+import logging
 from services.config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
+
+# Configuração básica de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 async def chat_with_ollama(messages: list):
     """Envia o contexto e a pergunta para o Ollama local."""
@@ -9,17 +13,20 @@ async def chat_with_ollama(messages: list):
         "messages": messages,
         "stream": False,
         "options": {
-            "num_ctx": 4096  # <-- O Segredo: Limita o uso de RAM para o Llama 3 não travar
+            "num_ctx": 4096  # Limita o uso de RAM
         }
     }
     
     try:
         async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
             response = await client.post(OLLAMA_URL, json=payload)
+            response.raise_for_status() # Lança uma exceção se o status não for 2xx
             
-            if response.status_code != 200:
-                return f"❌ Ollama recusou (Status {response.status_code}): {response.text}"
-                
             return response.json()["message"]["content"]
+            
+    except httpx.HTTPError as e:
+        logger.error(f"Erro HTTP na comunicação com Ollama: {e}")
+        return "Desculpe, o meu sistema de análise (LLM) está temporariamente indisponível."
     except Exception as e:
-        return f"❌ Falha na conexão com o servidor Ollama: {str(e)}"
+        logger.error(f"Erro interno no cliente Ollama: {e}")
+        return "Ocorreu uma falha de sistema inesperada ao processar o seu pedido."

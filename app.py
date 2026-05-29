@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 import uvicorn
 import cv2
 import time
@@ -11,29 +12,34 @@ import os
 from services.video_monitor import monitor
 from services.event_repository import init_db, get_recent_events
 from services.monitoring_agent import ask_agent
+from services.agro_scraper import scraper as agro_scraper # NOVO: Integração do scraper agrícola
+from services.weather_scraper import weather_service      # NOVO: Integração do scraper de clima
 
-app = FastAPI(title="AgroVision AI - Sistema de Monitoramento")
+# 1. Novo sistema de inicialização (Lifespan) que substitui o "on_event"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 Iniciando motor AgroVision...")
+    init_db()        # Garante que o SQLite existe
+    monitor.start()  # Liga o YOLO e a câmera
+    yield
+    monitor.stop()   # Desliga a câmera corretamente ao fechar o servidor
+
+app = FastAPI(title="AgroVision AI - Sistema de Monitoramento", lifespan=lifespan)
 
 # Configuração de templates e arquivos estáticos
-# Certifique-se de que a pasta 'templates' e 'static' existam na raiz
 templates = Jinja2Templates(directory="templates")
 
 if not os.path.exists("static"):
     os.makedirs("static")
+if not os.path.exists("static/captures"):
+    os.makedirs("static/captures")
+    
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 1. Evento de inicialização
-@app.on_event("startup")
-def startup_event():
-    print("🚀 Iniciando motor AgroVision...")
-    init_db()  # Garante que o SQLite existe
-    monitor.start()  # Liga o YOLO e a câmera
-
-# 2. Rota Raiz - AGORA CARREGA O DASHBOARD
+# 2. Rota Raiz
 @app.get("/")
 def read_root(request: Request):
-    # Renderiza o arquivo templates/index.html
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 # 3. Rota de Saúde
 @app.get("/health")
@@ -81,6 +87,19 @@ def video_feed():
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
-# 8. Execução
+# 8. NOVAS ROTAS: Integração da Camada de Web Scraping
+@app.get("/api/context/agro")
+async def get_agro_news():
+    """Retorna as notícias e o contexto de mercado agrícola atual."""
+    dados = await agro_scraper.fetch_agro_context()
+    return dados
+
+@app.get("/api/context/weather")
+async def get_weather(lat: float = -23.55, lon: float = -46.63):
+    """Retorna o clima atual de uma coordenada para análise de risco."""
+    clima = await weather_service.get_current_weather(lat, lon)
+    return clima
+
+# 9. Execução
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("app:app", host="127.0.0.1", port=8000)
