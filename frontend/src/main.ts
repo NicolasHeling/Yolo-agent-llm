@@ -43,7 +43,11 @@ async function sendMessage(): Promise<void> {
     appendMessage('bot', loadingHtml, loadingId);
 
     try {
-        const response = await fetch(`/agent/test?q=${encodeURIComponent(userText)}`);
+        const response = await fetch('/agent/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: userText })
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -73,7 +77,6 @@ async function sendMessage(): Promise<void> {
     }
 }
 
-// Vincula os eventos aos botões
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', (event: KeyboardEvent) => {
     if (event.key === 'Enter') {

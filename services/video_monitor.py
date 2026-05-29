@@ -14,7 +14,6 @@ class VideoMonitor:
         self.thread = None
 
     def start(self):
-        """Inicia a thread de monitoramento em segundo plano."""
         if self.is_running:
             return
         self.is_running = True
@@ -22,20 +21,16 @@ class VideoMonitor:
         self.thread.start()
 
     def stop(self):
-        """Para o monitoramento."""
         self.is_running = False
         if self.thread:
             self.thread.join()
 
     def _update_loop(self):
-        """Loop principal de leitura de frames e detecção."""
         while self.is_running:
-            # Converte a fonte para número (int) se for um dígito como "0"
             source = int(CAMERA_SOURCE) if str(CAMERA_SOURCE).isdigit() else CAMERA_SOURCE
             
             print(f"📷 Conectando na fonte: {source}")
             
-            # Ligar diretamente à fonte sem configurações extras do Windows para evitar travamento
             cap = cv2.VideoCapture(source)
             
             if not cap.isOpened():
@@ -51,10 +46,8 @@ class VideoMonitor:
                     print("⚠️ Perda de sinal do stream. Tentando reconectar...")
                     break
                 
-                # Executa a detecção do YOLO
                 results = self.model(frame, verbose=False)
                 
-                # Gera o frame anotado para poder ser guardado
                 annotated_frame = results[0].plot()
                 
                 for box in results[0].boxes:
@@ -64,21 +57,19 @@ class VideoMonitor:
                         class_id = int(box.cls[0])
                         label = self.model.names[class_id]
                         
-                        # MELHORIA: Criar um nome de ficheiro único baseado num timestamp
-                        timestamp = int(time.time() * 1000)
-                        image_filename = f"static/captures/detection_{timestamp}.jpg"
-                        
-                        # Guarda fisicamente o ficheiro de imagem no disco
-                        cv2.imwrite(image_filename, annotated_frame)
-                        
-                        # Guarda o registo na base de dados referenciando a nova imagem
-                        save_event(label, confianca, image_filename)
+                        try:
+                            timestamp = int(time.time() * 1000)
+                            image_filename = f"static/captures/detection_{timestamp}.jpg"
+                            
+                            cv2.imwrite(image_filename, annotated_frame)
+                            save_event(label, confianca, image_filename)
+                        except Exception as e:
+                            print(f"⚠️ Erro ao salvar frame ou gravar evento: {e}")
+                            continue
                 
-                # Atualiza o frame anotado para a rota de streaming
                 self.current_frame = annotated_frame
                 time.sleep(0.03)
                 
             cap.release()
 
-# Instância global criada no FINAL do arquivo
 monitor = VideoMonitor()
